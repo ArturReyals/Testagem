@@ -1,6 +1,7 @@
+// src/assets/pages/Agendamento.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { addAgendamento, escutarAuth } from '../../services/firebaseService';
+import { addAgendamento, escutarAuth, getAgendamentos } from '../../services/firebaseService';
 
 const ROSA = '#A61C5D';
 const AMARELO = '#ffd801';
@@ -9,7 +10,6 @@ const CINZA = '#f8f9fa';
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const HORARIOS = ['09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
-const HORARIOS_OCUPADOS = { 2:['10:00','15:00'], 3:['09:00','14:00'], 4:['11:00'], 5:['10:00','13:00','16:00'], 6:['09:00','10:00','11:00'] };
 const MOTIVO_MAP = { '':'—', adocao:'Interesse em adoção', conhecer:'Conhecer os pets', voluntario:'Ser voluntário', doacao:'Entregar doação', outro:'Outro' };
 
 function maskCpf(v) { return v.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2').slice(0,14); }
@@ -85,6 +85,9 @@ export default function Agendamento() {
   const [enviando, setEnviando] = useState(false);
   const [usuario, setUsuario] = useState(null);
   const [stages, setStages] = useState({ enviado: true, analise: false, confirmado: false, lembrete: false, visita: false });
+  
+  // ✅ Estado novo para armazenar a lista de agendamentos reais vindos do banco
+  const [agendamentosDoBanco, setAgendamentosDoBanco] = useState([]);
 
   useEffect(() => {
     const unsub = escutarAuth(u => {
@@ -93,6 +96,13 @@ export default function Agendamento() {
     });
     return unsub;
   }, []);
+
+  // ✅ Busca os agendamentos salvos no banco para saber o que bloquear
+  useEffect(() => {
+    getAgendamentos()
+      .then(setAgendamentosDoBanco)
+      .catch(console.error);
+  }, [tela]); // Recarrega se o fluxo mudar para atualizar horários novos
 
   function handleForm(e) {
     const { name, value } = e.target;
@@ -111,7 +121,7 @@ export default function Agendamento() {
       try {
         const dataStr = diaSel.toLocaleDateString('pt-BR');
         await addAgendamento({
-          usuarioId:  usuario?.uid || '',
+          usuarioId:   usuario?.uid || '',
           usuarioNome: form.nome,
           email:      form.email,
           telefone:   form.telefone,
@@ -121,6 +131,7 @@ export default function Agendamento() {
           data:       dataStr,
           horario:    horarioSel,
           dataISO:    diaSel.toISOString(),
+          status:     'pendente', // Garante o status correto inicial
         });
         const prot = '#AGD-' + Math.floor(1000 + Math.random() * 9000);
         setProtocolo(prot);
@@ -141,7 +152,17 @@ export default function Agendamento() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  const horariosOcupados = diaSel ? (HORARIOS_OCUPADOS[diaSel.getDay()] || []) : [];
+  // ✅ LÓGICA DE BLOQUEIO DINÂMICO: Descobre quais horários estão ocupados na data escolhida
+  const obterHorariosOcupados = () => {
+    if (!diaSel) return [];
+    const dataAlvoStr = diaSel.toLocaleDateString('pt-BR');
+    
+    return agendamentosDoBanco
+      .filter(a => a.data === dataAlvoStr && (a.status === 'pendente' || a.status === 'confirmado' || a.status === 'bloqueado'))
+      .map(a => a.horario);
+  };
+
+  const horariosOcupados = obterHorariosOcupados();
   const inputStyle = { borderRadius: '12px', fontSize: '14px' };
   const btnRosa = { background: ROSA, color: 'white', borderRadius: '30px', fontWeight: 700, border: 'none', padding: '10px 24px', cursor: 'pointer' };
 
@@ -209,7 +230,7 @@ export default function Agendamento() {
               {diaSel && (
                 <div style={{ marginTop: '24px' }}>
                   <h5 className="fw-bold mb-1" style={{ color: ROSA }}>Escolha o Horário</h5>
-                  <p className="text-muted mb-3" style={{ fontSize: '14px' }}>Horários <span style={{ textDecoration: 'line-through', color: '#aaa' }}>riscados</span> já estão reservados.</p>
+                  <p className="text-muted mb-3" style={{ fontSize: '14px' }}>Horários <span style={{ textDecoration: 'line-through', color: '#aaa' }}>riscados</span> já estão reservados ou em análise.</p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                     {HORARIOS.map(h => {
                       const ocupado = horariosOcupados.includes(h);
@@ -219,7 +240,7 @@ export default function Agendamento() {
                           {!ocupado && <i className="bi bi-clock me-1" style={{ color: selecionado ? 'white' : ROSA }}></i>}
                           {ocupado && <i className="bi bi-x-circle text-danger me-1"></i>}
                           {h}
-                          {ocupado && <div style={{ fontSize: '11px', marginTop: '2px' }}>Ocupado</div>}
+                          {ocupado && <div style={{ fontSize: '11px', marginTop: '2px', textDecoration: 'none', display: 'block' }}>Ocupado</div>}
                         </div>
                       );
                     })}
@@ -227,7 +248,7 @@ export default function Agendamento() {
                 </div>
               )}
               <div className="d-flex justify-content-between mt-4">
-                <button onClick={() => irPara(1)} className="btn btn-outline-secondary rounded-pill"><i className="bi bi-arrow-left me-1"></i> Voltar</button>
+                <button onClick={() => !enviando && irPara(1)} className="btn btn-outline-secondary rounded-pill"><i className="bi bi-arrow-left me-1"></i> Voltar</button>
                 <button onClick={() => irPara(3)} style={{ ...btnRosa, opacity: !diaSel || !horarioSel ? 0.5 : 1 }} disabled={!diaSel || !horarioSel}>Próximo <i className="bi bi-arrow-right ms-1"></i></button>
               </div>
             </>
@@ -282,11 +303,11 @@ export default function Agendamento() {
               </div>
               <div style={{ marginTop: '24px' }}>
                 {[
-                  { key: 'enviado',    icon: 'bi-send-check',    label: 'Solicitação Enviada',    desc: 'Recebemos sua solicitação com sucesso.' },
-                  { key: 'analise',    icon: 'bi-search',         label: 'Em Análise',             desc: 'Nossa equipe está verificando disponibilidade...' },
+                  { key: 'enviado',     icon: 'bi-send-check',    label: 'Solicitação Enviada',    desc: 'Recebemos sua solicitação com sucesso.' },
+                  { key: 'analise',     icon: 'bi-search',         label: 'Em Análise',             desc: 'Nossa equipe está verificando disponibilidade...' },
                   { key: 'confirmado', icon: 'bi-calendar-check', label: 'Agendamento Confirmado', desc: 'Você receberá a confirmação por e-mail.' },
-                  { key: 'lembrete',   icon: 'bi-bell',           label: 'Lembrete Enviado',       desc: 'Enviaremos um lembrete 24h antes da visita.' },
-                  { key: 'visita',     icon: 'bi-house-heart',    label: 'Dia da Visita',          desc: 'Bem-vindo à ONG AdoPet! Nos vemos em breve. 🐾' },
+                  { key: 'lembrete',    icon: 'bi-bell',           label: 'Lembrete Enviado',       desc: 'Enviaremos um lembrete 24h antes da visita.' },
+                  { key: 'visita',      icon: 'bi-house-heart',    label: 'Dia da Visita',          desc: 'Bem-vindo à ONG AdoPet! Nos vemos em breve. 🐾' },
                 ].map((stage, i) => {
                   const done = stages[stage.key];
                   return (

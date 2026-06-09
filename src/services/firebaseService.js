@@ -17,6 +17,11 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { auth, db, storage } from '../firebase';
 
+import { sendPasswordResetEmail } from 'firebase/auth';
+
+
+
+
 // ─── PETS ────────────────────────────────────────────────────────────────────
 
 export async function getPets() {
@@ -54,7 +59,7 @@ export async function uploadImagem(file, folder = 'pets') {
   return await getDownloadURL(storageRef);
 }
 
-// ─── SOLICITAÇÕES DE ADOÇÃO ──────────────────────────────────────────────────
+// ─── SOLICITAÇÕES DE ADOÇÃO (COM DADOS CADASTRAIS) ───────────────────────────
 
 export async function getSolicitacoes() {
   const snap = await getDocs(
@@ -71,8 +76,17 @@ export async function getSolicitacoesByUsuario(uid) {
 }
 
 export async function addSolicitacao(dados) {
+  const usuarioAtual = auth.currentUser;
+  if (!usuarioAtual) throw new Error("Usuário não autenticado");
+
+  const userSnap = await getDoc(doc(db, 'usuarios', usuarioAtual.uid));
+  const userData = userSnap.exists() ? userSnap.data() : {};
+
   return await addDoc(collection(db, 'solicitacoes'), {
     ...dados,
+    usuarioId: usuarioAtual.uid,
+    cpf: userData.cpf || 'Não informado',
+    endereco: userData.endereco || 'Não informado',
     status: 'pendente',
     protocolo: 'ADOC-' + Date.now().toString().slice(-6),
     criadoEm: serverTimestamp(),
@@ -86,7 +100,7 @@ export async function updateSolicitacao(id, novoStatus) {
   });
 }
 
-// ─── AGENDAMENTOS ────────────────────────────────────────────────────────────
+// ─── AGENDAMENTOS (COM DADOS CADASTRAIS) ─────────────────────────────────────
 
 export async function getAgendamentos() {
   const snap = await getDocs(
@@ -103,11 +117,27 @@ export async function getAgendamentosByUsuario(uid) {
 }
 
 export async function addAgendamento(dados) {
+  const usuarioAtual = auth.currentUser;
+  if (!usuarioAtual) throw new Error("Usuário não autenticado");
+
+  const userSnap = await getDoc(doc(db, 'usuarios', usuarioAtual.uid));
+  const userData = userSnap.exists() ? userSnap.data() : {};
+
   return await addDoc(collection(db, 'agendamentos'), {
     ...dados,
+    usuarioId: usuarioAtual.uid,
+    cpf: userData.cpf || 'Não informado',
+    endereco: userData.endereco || 'Não informado',
     status: 'pendente',
     protocolo: 'AGD-' + Date.now().toString().slice(-6),
     criadoEm: serverTimestamp(),
+  });
+}
+
+export async function updateAgendamento(id, dados) {
+  await updateDoc(doc(db, 'agendamentos', id), {
+    ...dados,
+    atualizadoEm: serverTimestamp(),
   });
 }
 
@@ -128,16 +158,18 @@ export async function getDoacoesByUsuario(uid) {
 }
 
 export async function addDoacao(dados) {
+  const usuarioAtual = auth.currentUser;
   return await addDoc(collection(db, 'doacoes'), {
     ...dados,
+    usuarioId: usuarioAtual ? usuarioAtual.uid : '',
     protocolo: 'DOA-' + Date.now().toString().slice(-6),
     criadoEm: serverTimestamp(),
   });
 }
 
-// ─── AUTENTICAÇÃO ────────────────────────────────────────────────────────────
+// ─── AUTENTICAÇÃO E PERFIL ──────────────────────────────────────────────────
 
-export async function cadastrarUsuario({ nome, email, senha, telefone, cpf }) {
+export async function cadastrarUsuario({ nome, email, senha, telefone, cpf, endereco }) {
   const cred = await createUserWithEmailAndPassword(auth, email, senha);
   const uid  = cred.user.uid;
   await setDoc(doc(db, 'usuarios', uid), {
@@ -145,6 +177,7 @@ export async function cadastrarUsuario({ nome, email, senha, telefone, cpf }) {
     email,
     telefone: telefone || '',
     cpf:      cpf      || '',
+    endereco: endereco || '',
     role:     'visitante',
     criadoEm: serverTimestamp(),
   });
@@ -175,11 +208,13 @@ export function escutarAuth(callback) {
   });
 }
 
-export async function getUsuarioLogado() {
-  const user = auth.currentUser;
-  if (!user) return null;
-  const snap = await getDoc(doc(db, 'usuarios', user.uid));
-  return snap.exists() ? { uid: user.uid, ...snap.data() } : null;
+export async function buscarDadosUsuario(uid) {
+  const docSnap = await getDoc(doc(db, 'usuarios', uid));
+  return docSnap.exists() ? docSnap.data() : { nome: '', telefone: '', endereco: '', cpf: '' };
+}
+
+export async function atualizarDadosUsuario(uid, dados) {
+  await updateDoc(doc(db, 'usuarios', uid), dados);
 }
 
 // ─── USUÁRIOS (admin) ────────────────────────────────────────────────────────
@@ -189,13 +224,18 @@ export async function getUsuarios() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// ✅ FUNÇÃO RESTAURADA QUE ESTAVA FALTANDO
 export async function seedPets() {
   const SEED = [
-    { nome:'Bolinha', tipo:'cachorro', sexo:'Macho', idade:'3 anos',  porte:'medio',   localizacao:'Fortaleza', descricao:'Bolinha é um cão dócil e brincalhão.', vacinado:true,  castrado:false, foto:'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=500&q=60', status:'disponivel' },
-    { nome:'Mia',     tipo:'gato',    sexo:'Fêmea', idade:'1 ano',   porte:'pequeno', localizacao:'Fortaleza', descricao:'Mia é uma gatinha carinhosa e curiosa.',           vacinado:true,  castrado:true,  foto:'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500&q=60', status:'disponivel' },
-    { nome:'Thor',    tipo:'cachorro', sexo:'Macho', idade:'4 meses', porte:'grande',  localizacao:'Caucaia',  descricao:'Thor ainda é filhote, cheio de energia!',          vacinado:true,  castrado:false, foto:'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=500&q=60', status:'disponivel' },
+    { nome:'Bolinha', tipo:'cachorro', sexo:'Macho', idade:'3 anos', porte:'medio', localizacao:'Fortaleza', descricao:'Bolinha é um cão dócil e brincalhão.', vacinado:true, castrado:false, foto:'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=500&q=60', status:'disponivel' },
+    { nome:'Mia', tipo:'gato', sexo:'Fêmea', idade:'1 ano', porte:'pequeno', localizacao:'Fortaleza', descricao:'Mia é uma gatinha carinhosa e curiosa.', vacinado:true, castrado:true, foto:'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500&q=60', status:'disponivel' },
+    { nome:'Thor', tipo:'cachorro', sexo:'Macho', idade:'4 meses', porte:'grande', localizacao:'Caucaia', descricao:'Thor ainda é filhote, cheio de energia!', vacinado:true, castrado:false, foto:'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=500&q=60', status:'disponivel' },
   ];
   for (const pet of SEED) {
     await addDoc(collection(db, 'pets'), { ...pet, criadoEm: serverTimestamp() });
   }
+}
+
+export async function resetarSenha(email) {
+  return await sendPasswordResetEmail(auth, email);
 }

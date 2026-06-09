@@ -1,7 +1,7 @@
 // src/assets/pages/Pets.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getPets, addSolicitacao, escutarAuth } from '../../services/firebaseService';
+import { getPets, addSolicitacao, escutarAuth, updatePet} from '../../services/firebaseService';
 
 const ROSA   = '#A61C5D';
 const AMARELO = '#ffd801';
@@ -44,9 +44,11 @@ function ModalPet({ pet, onClose, logado, usuario }) {
     const { nome, email, tel, cidade, moradia, termo } = form;
     if (!nome || !email || !tel || !cidade || !moradia) { alert('Preencha todos os campos obrigatórios.'); return; }
     if (!termo) { alert('Aceite os termos de responsabilidade.'); return; }
+    
     setEnviando(true);
     try {
-      const ref = await addSolicitacao({
+      // 1. Cria a solicitação no banco
+      await addSolicitacao({
         petId:       pet.id,
         petNome:     pet.nome,
         usuarioId:   usuario?.uid || '',
@@ -54,6 +56,10 @@ function ModalPet({ pet, onClose, logado, usuario }) {
         email, tel, cidade, moradia,
         motivo:      form.motivo,
       });
+
+      // 2. Atualiza o status do pet para 'reservado' imediatamente
+      await updatePet(pet.id, { status: 'reservado' });
+
       setProtocolo('ADOC-' + Date.now().toString().slice(-6));
       setTela(3);
     } catch (err) {

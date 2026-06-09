@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="container">
         <div className="row g-4">
           <div className="col-md-4">
-            <h4 className="fw-bold" style={{ color: '#ffd801' }}>4PatasFortaleza</h4>
+            <h4 className="fw-bold" style={{ color: '#ffd801' }}>AdoPets</h4>
             <p style={{ fontSize: '14px', color: '#bbb', marginTop: '15px' }}>
               Fundação dedicada a garantir que cães e gatos encontrem um lar seguro, carinhoso e cheio de amor. Adote e transforme uma vida!
             </p>
@@ -35,7 +35,7 @@ export default function Footer() {
         <hr style={{ borderColor: '#444', marginTop: '40px', marginBottom: '20px' }} />
 
         <div className="text-center" style={{ color: '#777', fontSize: '13px' }}>
-          &copy; {new Date().getFullYear()} 4PatasFortaleza. Todos os direitos reservados.
+          &copy; {new Date().getFullYear()} AdoPets. Todos os direitos reservados.
         </div>
       </div>
     </footer>

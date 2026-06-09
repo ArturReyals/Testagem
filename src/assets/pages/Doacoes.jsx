@@ -222,7 +222,7 @@ export default function Doacoes() {
                   </svg>
                   <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', marginTop: '12px' }}>Chave PIX (CNPJ):</p>
                   <div style={{ background: 'white', border: `2px dashed ${ROSA}`, borderRadius: '12px', padding: '10px 16px', fontFamily: 'monospace', fontSize: '14px', color: ROSA, fontWeight: 700, display: 'inline-block' }}>
-                    00.000.000/0001-00 – 4PatasFortaleza
+                    00.000.000/0001-00 – AdoPets
                   </div><br />
                   <button onClick={copiarPix} className="btn mt-3" style={{ background: ROSA, color: 'white', borderRadius: '30px', fontWeight: 700, fontSize: '14px' }}>
                     <i className="bi bi-clipboard me-2"></i>Copiar Chave PIX

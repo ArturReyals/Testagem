@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import * as Imagens from '../../assets/images';
 
 const ROSA = '#A61C5D';
 const AMARELO = '#ffd801';
@@ -18,10 +19,10 @@ const valores = [
 ];
 
 const equipe = [
-  { nome: 'Ana Silva',       cargo: 'Fundadora / Presidência',    bio: 'Idealizadora do projeto, dedica sua vida a dar voz aos animais.',                              img: '/assets/images/ceo.png' },
-  { nome: 'Dr. Rodrigo Silva', cargo: 'Veterinário Chefe',        bio: 'Responsável por cuidar da saúde e reabilitação dos nossos resgatados.',                       img: '/assets/images/veterinario.png' },
-  { nome: 'Beatriz Souza',   cargo: 'Coord. de Voluntários',      bio: 'Organiza nossa rede de amor e treinamentos com voluntários.',                                  img: '/assets/images/coord_volunt.png' },
-  { nome: 'Lucas Andrade',   cargo: 'Gestor de Adoções',          bio: 'Faz a ponte perfeita entre as famílias e os pets que aguardam um lar.',                       img: '/assets/images/estagiario.png' },
+  { nome: 'Ana Silva',       cargo: 'Fundadora / Presidência',    bio: 'Idealizadora do projeto, dedica sua vida a dar voz aos animais.',                              img: Imagens.ceo },
+  { nome: 'Dr. Rodrigo Silva', cargo: 'Veterinário Chefe',        bio: 'Responsável por cuidar da saúde e reabilitação dos nossos resgatados.',                       img: Imagens.veterinario },
+  { nome: 'Beatriz Souza',   cargo: 'Coord. de Voluntários',      bio: 'Organiza nossa rede de amor e treinamentos com voluntários.',                                  img: Imagens.coord_volunt },
+  { nome: 'Lucas Andrade',   cargo: 'Gestor de Adoções',          bio: 'Faz a ponte perfeita entre as famílias e os pets que aguardam um lar.',                       img: Imagens.estagiario },
 ];
 
 export default function Sobre() {
@@ -30,7 +31,7 @@ export default function Sobre() {
       {/* HERO */}
       <section style={{ backgroundColor: AMARELO, padding: '60px 0', textAlign: 'center' }}>
         <div className="container">
-          <h1 style={{ color: ROSA, fontWeight: 800, fontSize: '2.5rem' }}>Sobre a 4PatasFortaleza</h1>
+          <h1 style={{ color: ROSA, fontWeight: 800, fontSize: '2.5rem' }}>Sobre a AdoPets</h1>
           <p style={{ color: ROSA, fontSize: '1.2rem', marginTop: '10px', fontWeight: 500 }}>
             Conheça nossa história e a missão que nos move todos os dias
           </p>
@@ -58,7 +59,7 @@ export default function Sobre() {
             </span>
             <h3 style={{ color: '#333', fontWeight: 800, marginTop: '15px', marginBottom: '20px' }}>Nascemos do amor pelos animais</h3>
             <p style={{ color: '#666', lineHeight: 1.8 }}>
-              A <strong>4PatasFortaleza</strong> nasceu em 2017 a partir de um grupo de amigos apaixonados por animais que não podiam mais fechar os olhos para a quantidade de cães e gatos abandonados nas ruas de Fortaleza e região metropolitana.
+              A <strong>AdoPets</strong> nasceu em 2017 a partir de um grupo de amigos apaixonados por animais que não podiam mais fechar os olhos para a quantidade de cães e gatos abandonados nas ruas de Fortaleza e região metropolitana.
             </p>
             <p style={{ color: '#666', lineHeight: 1.8 }}>
               O que começou como resgates informais nos finais de semana rapidamente se transformou em uma rede de apoio sólida. Hoje, contamos com abrigos parceiros, clínicas veterinárias aliadas e uma legião de voluntários dedicados a reabilitar e encontrar lares cheios de amor para cada um dos nossos peludos.
@@ -66,7 +67,7 @@ export default function Sobre() {
           </div>
           <div className="col-lg-6">
             <img
-              src="../assets/images/resgate.jpg"
+              src={Imagens.resgate}
               alt="Equipe resgatando animais"
               style={{ width: '100%', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
             />

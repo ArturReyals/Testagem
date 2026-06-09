@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  getPets, addPet, updatePet, deletePet, uploadImagem,
+  getPets, addPet, updatePet, deletePet,
   getUsuarios, getSolicitacoes, updateSolicitacao,
-  getAgendamentos,
+  getAgendamentos, updateAgendamento,
   logoutUsuario, escutarAuth, seedPets,
 } from '../../services/firebaseService';
 
@@ -114,8 +114,7 @@ function GerenciarPets({ pets, onRefresh, setAba }) {
 
   async function excluir(id, nome) {
     if (!window.confirm(`Excluir ${nome}?`)) return;
-    try { await deletePet(id); onRefresh(); }
-    catch { alert('Erro ao excluir.'); }
+    try { await deletePet(id); onRefresh(); } catch {  }
   }
 
   async function salvarEdicao() {
@@ -187,7 +186,7 @@ function GerenciarPets({ pets, onRefresh, setAba }) {
                         onError={e => { e.target.onerror = null; e.target.src = IMG_FALLBACK; }} />
                     </td>
                     <td style={tdStyle}><strong>{p.nome}</strong></td>
-                    <td style={tdStyle}>{p.tipo === 'cachorro' ? '🐶' : '🐱'} {p.tipo}</td>
+                    <td style={tdStyle}>{p.tipo === 'cachorro' ? '' : ''} {p.tipo}</td>
                     <td style={tdStyle}><Badge status={p.status} /></td>
                     <td style={tdStyle}>{p.localizacao}</td>
                     <td style={tdStyle}>
@@ -207,51 +206,59 @@ function GerenciarPets({ pets, onRefresh, setAba }) {
   );
 }
 
-// ── CADASTRAR PET ─────────────────────────────────────────────────────────────
+// ── CADASTRAR PET (Modificado para Base64) ───────────────────────────────────
 function CadastrarPet({ onRefresh, setAba }) {
-  const [form, setForm]     = useState({ nome: '', tipo: 'cachorro', sexo: 'Macho', idade: '', porte: 'medio', localizacao: 'Fortaleza', descricao: '', foto: '', status: 'disponivel', vacinado: false, castrado: false });
+  const [form, setForm] = useState({ nome: '', tipo: 'cachorro', sexo: 'Macho', idade: '', porte: 'medio', localizacao: 'Fortaleza', descricao: '', foto: '', status: 'disponivel', vacinado: false, castrado: false });
   const [alerta, setAlerta] = useState(null);
-  const [arquivo, setArquivo] = useState(null);
   const [preview, setPreview] = useState(null);
   const [salvando, setSalvando] = useState(false);
+
+  const converterParaBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const fileReader = new FileReader();
+      fileReader.readAsDataURL(file);
+      fileReader.onload = () => resolve(fileReader.result);
+      fileReader.onerror = (error) => reject(error);
+    });
+  };
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
     setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
   }
 
-  function handleArquivo(e) {
+  async function handleArquivo(e) {
     const file = e.target.files[0];
     if (!file) return;
-    setArquivo(file);
-    setPreview(URL.createObjectURL(file));
+
+    if (file.size > 1000000) {
+      setAlerta({ msg: '⚠️ A imagem é muito pesada! Escolha uma menor (máx 1MB).', tipo: 'warning' });
+      return;
+    }
+
+    try {
+      const base64Texto = await converterParaBase64(file);
+      setForm(f => ({ ...f, foto: base64Texto }));
+      setPreview(base64Texto);
+      setAlerta(null);
+    } catch (err) {
+      setAlerta({ msg: 'Erro ao processar imagem.', tipo: 'danger' });
+    }
   }
 
   async function salvar() {
     if (!form.nome || !form.idade) { setAlerta({ msg: 'Preencha o nome e a idade do pet.', tipo: 'danger' }); return; }
     setSalvando(true);
     try {
-      let fotoUrl = form.foto;
-
-      // ✅ Se selecionou um arquivo, faz upload para o Firebase Storage
-      if (arquivo) {
-        fotoUrl = await uploadImagem(arquivo, 'pets');
-      }
-
-      await addPet({ ...form, foto: fotoUrl });
+      await addPet(form); 
       setAlerta({ msg: `✅ Pet <strong>${form.nome}</strong> cadastrado com sucesso!`, tipo: 'success' });
       setForm({ nome: '', tipo: 'cachorro', sexo: 'Macho', idade: '', porte: 'medio', localizacao: 'Fortaleza', descricao: '', foto: '', status: 'disponivel', vacinado: false, castrado: false });
-      setArquivo(null);
       setPreview(null);
       onRefresh();
       setTimeout(() => setAba('pets'), 1500);
     } catch (err) {
       console.error('Erro ao cadastrar pet:', err);
-      let msg = 'Erro ao cadastrar pet. Tente novamente.';
-      if (err?.code === 'storage/unauthorized') msg = '⚠️ Sem permissão no Storage. Use uma URL de imagem.';
-      else if (err?.code === 'permission-denied') msg = '⚠️ Sem permissão no Firestore. Verifique as regras.';
-      else if (err?.message) msg = 'Erro: ' + err.message;
-      setAlerta({ msg, tipo: 'danger' });
+      setAlerta({ msg: 'Erro: ' + (err.message || 'Falha ao salvar no banco.'), tipo: 'danger' });
     } finally {
       setSalvando(false);
     }
@@ -275,14 +282,14 @@ function CadastrarPet({ onRefresh, setAba }) {
             </div>
           ))}
 
-          {/* ✅ UPLOAD DE IMAGEM — substitui o campo de URL */}
+          {/* UPLOAD DE IMAGEM */}
           <div className="col-12">
             <label className="form-label fw-semibold" style={{ fontSize: '13px' }}>Foto do Pet</label>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <div>
                 <input type="file" accept="image/*" onChange={handleArquivo} className="form-control" style={{ ...inputStyle, width: 'auto' }} />
-                <p style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>Ou cole uma URL abaixo</p>
-                <input type="text" name="foto" value={form.foto} onChange={handleChange} placeholder="https://..." style={{ ...inputStyle, marginTop: '4px' }} />
+                
+                
               </div>
               {(preview || form.foto) && (
                 <img src={preview || form.foto} alt="preview" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '12px', border: '2px solid #eee' }}
@@ -322,7 +329,7 @@ function CadastrarPet({ onRefresh, setAba }) {
           <button onClick={salvar} disabled={salvando} style={{ ...btnRosa, opacity: salvando ? 0.7 : 1 }}>
             {salvando ? <><span className="spinner-border spinner-border-sm me-2"></span>Salvando...</> : <><i className="bi bi-floppy me-2"></i>Salvar Pet</>}
           </button>
-          <button onClick={() => { setForm({ nome: '', tipo: 'cachorro', sexo: 'Macho', idade: '', porte: 'medio', localizacao: 'Fortaleza', descricao: '', foto: '', status: 'disponivel', vacinado: false, castrado: false }); setArquivo(null); setPreview(null); }}
+          <button onClick={() => { setForm({ nome: '', tipo: 'cachorro', sexo: 'Macho', idade: '', porte: 'medio', localizacao: 'Fortaleza', descricao: '', foto: '', status: 'disponivel', vacinado: false, castrado: false }); setPreview(null); }}
             className="btn btn-outline-secondary" style={{ borderRadius: '10px' }}>Limpar</button>
         </div>
       </div>
@@ -336,10 +343,22 @@ function Solicitacoes({ sols, onRefresh }) {
   const [atualizando, setAtualizando] = useState(null);
   const filtrados = filtro === 'todas' ? sols : sols.filter(s => s.status === filtro);
 
-  async function mudarStatus(id, status) {
-    setAtualizando(id);
-    try { await updateSolicitacao(id, status); onRefresh(); }
-    catch { alert('Erro ao atualizar.'); }
+  // 🔥 NOVIDADE: Agora a função recebe o petId
+  async function mudarStatus(solicitacaoId, novoStatus, petId) {
+    setAtualizando(solicitacaoId);
+    try {
+      // 1. Atualiza se a solicitação foi aprovada ou rejeitada
+      await updateSolicitacao(solicitacaoId, novoStatus);
+
+      // 2. Atualiza o status do Pet no banco de dados
+      if (novoStatus === 'aprovado') {
+        await updatePet(petId, { status: 'adotado' });
+      } else if (novoStatus === 'rejeitado') {
+        await updatePet(petId, { status: 'disponivel' });
+      }
+
+      onRefresh(); // Recarrega os dados da tela
+    } catch { alert('Erro ao atualizar.'); }
     finally { setAtualizando(null); }
   }
 
@@ -373,9 +392,11 @@ function Solicitacoes({ sols, onRefresh }) {
                   <td style={tdStyle}>
                     {s.status === 'pendente' && (
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        <button onClick={() => mudarStatus(s.id, 'aprovado')} disabled={atualizando === s.id}
+                        {/* 🔥 NOVIDADE: Passando o s.petId nos botões */}
+                        <button onClick={() => mudarStatus(s.id, 'aprovado', s.petId)} disabled={atualizando === s.id}
                           style={{ background: '#e6ffee', color: '#008833', border: 'none', borderRadius: '8px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>✓ Aprovar</button>
-                        <button onClick={() => mudarStatus(s.id, 'rejeitado')} disabled={atualizando === s.id}
+                        
+                        <button onClick={() => mudarStatus(s.id, 'rejeitado', s.petId)} disabled={atualizando === s.id}
                           style={{ background: '#ffe6e6', color: '#cc0000', border: 'none', borderRadius: '8px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>✕ Rejeitar</button>
                       </div>
                     )}
@@ -417,10 +438,40 @@ function Usuarios({ users }) {
   );
 }
 
-
 // ── AGENDAMENTOS (admin) ──────────────────────────────────────────────────────
-function AgendamentosAdmin({ agends }) {
-  const solColor = { pendente: { bg: '#fff5e6', color: '#cc7700' }, confirmado: { bg: '#e6ffee', color: '#008833' }, cancelado: { bg: '#ffe6e6', color: '#cc0000' } };
+function AgendamentosAdmin({ agends, onRefresh }) {
+  const [atualizando, setAtualizando] = useState(null);
+  const [modalRecusa, setModalRecusa] = useState(null); // Guarda o agendamento que está sendo recusado
+
+  const solColor = { 
+    pendente: { bg: '#fff5e6', color: '#cc7700' }, 
+    confirmado: { bg: '#e6ffee', color: '#008833' }, 
+    cancelado: { bg: '#ffe6e6', color: '#cc0000' },
+    bloqueado: { bg: '#f0f0f0', color: '#555' } // Novo status para horários bloqueados permanentemente
+  };
+
+  async function aprovar(id) {
+    setAtualizando(id);
+    try {
+      await updateAgendamento(id, { status: 'confirmado' });
+      onRefresh();
+    } catch { alert('Erro ao aprovar.'); }
+    finally { setAtualizando(null); }
+  }
+
+  async function confirmarRecusa(liberar) {
+    const id = modalRecusa.id;
+    setAtualizando(id);
+    try {
+      // Se 'liberar' for true, o status vira 'cancelado' (deixa o horário livre no calendário do usuário)
+      // Se 'liberar' for false, o status vira 'bloqueado' (mantém o horário ocupado)
+      await updateAgendamento(id, { status: liberar ? 'cancelado' : 'bloqueado' });
+      setModalRecusa(null);
+      onRefresh();
+    } catch {  }
+    finally { setAtualizando(null); }
+  }
+
   return (
     <div style={cardStyle}>
       <div style={{ padding: '20px 24px', borderBottom: '1px solid #f0f0f0' }}>
@@ -434,7 +485,7 @@ function AgendamentosAdmin({ agends }) {
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>{['Protocolo','Nome','Data','Horário','Motivo','Status'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Protocolo','Nome','Data','Horário','Motivo','Status','Ações'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
             <tbody>
               {agends.map(a => (
                 <tr key={a.id}>
@@ -444,12 +495,46 @@ function AgendamentosAdmin({ agends }) {
                   <td style={tdStyle}>{a.horario}</td>
                   <td style={tdStyle}>{a.motivo || '—'}</td>
                   <td style={tdStyle}><Badge status={a.status} map={solColor} /></td>
+                  <td style={tdStyle}>
+                    {a.status === 'pendente' && (
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button onClick={() => aprovar(a.id)} disabled={atualizando === a.id}
+                          style={{ background: '#e6ffee', color: '#008833', border: 'none', borderRadius: '8px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>✓ Aprovar</button>
+                        
+                        <button onClick={() => setModalRecusa(a)} disabled={atualizando === a.id}
+                          style={{ background: '#ffe6e6', color: '#cc0000', border: 'none', borderRadius: '8px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>✕ Recusar</button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* MODAL DE DECISÃO DE RECUSA (BLOQUEAR OU LIBERAR HORÁRIO) */}
+      {modalRecusa && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1050, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '16px', maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
+            <h5 style={{ color: ROSA, fontWeight: 'bold' }}>Recusar Visita</h5>
+            <p style={{ fontSize: '14px', color: '#555', margin: '16px 0' }}>
+              Ao recusar a visita de <strong>{modalRecusa.usuarioNome}</strong> (Dia {modalRecusa.data} às {modalRecusa.horario}), o que deseja fazer com este horário?
+            </p>
+            <div className="d-flex flex-column gap-2 mt-4">
+              <button onClick={() => confirmarRecusa(true)} disabled={atualizando} className="btn w-100" style={{ background: '#e6ffee', color: '#008833', fontWeight: 'bold', borderRadius: '10px' }}>
+                <i className="bi bi-unlock-fill me-2"></i> Liberar Horário (Fica disponível)
+              </button>
+              <button onClick={() => confirmarRecusa(false)} disabled={atualizando} className="btn w-100" style={{ background: '#ffe6e6', color: '#cc0000', fontWeight: 'bold', borderRadius: '10px' }}>
+                <i className="bi bi-lock-fill me-2"></i> Bloquear Horário (Ninguém mais agenda)
+              </button>
+              <button onClick={() => setModalRecusa(null)} className="btn btn-outline-secondary w-100 mt-2" style={{ borderRadius: '10px' }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
