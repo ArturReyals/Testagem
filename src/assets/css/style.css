@@ -1,0 +1,212 @@
+/* ===========================
+   VARIÁVEIS E BASE
+=========================== */
+:root {
+    --rosa: #A61C5D;
+    --amarelo: #ffd801;
+    --cinza-fundo: #f8f9fa;
+}
+
+body {
+    background-color: var(--cinza-fundo);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ===========================
+   MENU DESLIZANTE
+=========================== */
+.menu-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.hidden-buttons-container {
+    display: flex;
+    gap: 15px;
+    overflow: hidden;
+    max-width: 0;
+    opacity: 0;
+    transition: max-width 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
+    white-space: nowrap;
+}
+
+.hidden-buttons-container.mostrar {
+    max-width: 1000px;
+    opacity: 1;
+}
+
+.btn-menu-oculto {
+    background-color: white;
+    color: var(--rosa);
+    border: none;
+    font-weight: 600;
+    padding: 8px 12px;
+    transition: all 0.3s ease;
+}
+
+.btn-menu-oculto:hover {
+    color: var(--amarelo);
+}
+
+/* ===========================
+   SEARCH BAR FLUTUANTE
+=========================== */
+.search-bar-floating {
+    background: white;
+    border-radius: 50px;
+    padding: 10px 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    margin-top: -40px;
+    position: relative;
+    z-index: 10;
+}
+
+/* ===========================
+   FILTROS CLICÁVEIS
+=========================== */
+.filter-block {
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 12px;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    user-select: none;
+    position: relative;
+}
+
+.filter-block:hover {
+    background-color: #f0f0f0;
+}
+
+.filter-block strong {
+    display: block;
+    font-size: 14px;
+}
+
+.filter-block .filter-value {
+    font-size: 12px;
+    color: #6c757d;
+    transition: color 0.2s;
+}
+
+/* Dropdown de opções */
+.filter-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 0;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    padding: 10px;
+    z-index: 100;
+    min-width: 180px;
+    animation: fadeDown 0.2s ease;
+}
+
+.filter-dropdown.aberto {
+    display: block;
+}
+
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.filter-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    transition: background-color 0.15s;
+}
+
+.filter-option:hover {
+    background-color: #fff5f9;
+    color: var(--rosa);
+}
+
+.filter-option.selecionado {
+    background-color: var(--rosa);
+    color: white;
+}
+
+.filter-option.selecionado:hover {
+    background-color: #8e1750;
+    color: white;
+}
+
+/* ===========================
+   CARDS DE PETS
+=========================== */
+.pet-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s;
+}
+
+.pet-card:hover {
+    transform: translateY(-5px);
+}
+
+.pet-card img {
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+    height: 200px;
+    object-fit: cover;
+}
+
+/* ===========================
+   RESPONSIVIDADE
+=========================== */
+@media (max-width: 768px) {
+    .search-bar-floating {
+        border-radius: 20px;
+        padding: 16px 20px;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-block {
+        border-left: none !important;
+        padding-left: 0 !important;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    .filter-block:last-of-type {
+        border-bottom: none;
+    }
+
+    .filter-dropdown {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .filter-dropdown.aberto {
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* ===========================
+   FOOTER LINKS
+=========================== */
+.footer-link {
+    color: #bbb;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+.footer-link:hover { color: #ffd801; }
+
+.footer-social {
+    color: white;
+    font-size: 24px;
+    transition: color 0.3s;
+}
+.footer-social:hover { color: #ffd801; }
